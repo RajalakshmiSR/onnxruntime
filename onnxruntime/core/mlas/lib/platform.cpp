@@ -16,6 +16,11 @@ Abstract:
 --*/
 
 #include "mlasi.h"
+#if defined(MLAS_TARGET_POWER) && defined(__linux__)
+#include <sys/auxv.h>
+#define PPC_FEATURE2_ARCH_3_1     0x00040000 /* ISA 3.1.  */
+#define PPC_FEATURE2_MMA          0x00020000 /* Matrix-Multiply Assist.  */
+#endif
 
 //
 // Stores the platform information.
@@ -325,6 +330,19 @@ Return Value:
     }
 
 #endif // MLAS_TARGET_AMD64_IX86
+#if defined(MLAS_TARGET_POWER)
+  this->GemmFloatKernel = MlasSgemmKernel;
+#if defined(__linux__)
+#if (defined(__GNUC__) && ((__GNUC__ > 10) || (__GNUC__== 10 && __GNUC_MINOR__ >= 2))) || \
+    (defined(__clang__) && (__clang_major__ >= 12))
+  unsigned long hwcap2 = getauxval(AT_HWCAP2);
+  bool HasP10Instructions = ((hwcap2 & PPC_FEATURE2_MMA) && (hwcap2 & PPC_FEATURE2_ARCH_3_1));
+  if (HasP10Instructions) {
+    this->GemmFloatKernel = MlasSgemmKernelPOWER10;
+  }
+#endif
+#endif
+#endif
 
 }
 
